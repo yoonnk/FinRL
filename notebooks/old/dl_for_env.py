@@ -1,3 +1,10 @@
+import site
+site.addsitedir(r"C:\Users\USER\Desktop\new\dl4seq")
+
+from dl4seq import Model
+import time
+import pandas as pd
+from sklearn.model_selection import train_test_split
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
