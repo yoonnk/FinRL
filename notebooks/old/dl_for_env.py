@@ -2,12 +2,12 @@ import site
 site.addsitedir(r"C:\Users\USER\Desktop\new\dl4seq")
 
 from dl4seq import Model
-import time
+# import time
 import pandas as pd
-from sklearn.model_selection import train_test_split
+# from sklearn.model_selection import train_test_split
 import numpy as np
 import tensorflow as tf
-from tensorflow import keras
+# from tensorflow import keras
 np.set_printoptions(suppress=True)
 
 config = tf.compat.v1.ConfigProto()
@@ -17,7 +17,6 @@ session = tf.compat.v1.Session(config=config)
 tf.compat.v1.disable_eager_execution()
 
 cpath = r"C:\Users\USER\Desktop\test_dl4seq\results\20210412_132712\config.json"
-
 
 df = pd.read_excel(r'C:\Users\USER\Desktop\test_dl4seq\data\1YRDATA.xlsx')
 # df.index = pd.to_datetime(df['date'])
