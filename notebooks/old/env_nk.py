@@ -59,15 +59,12 @@ class BWTPEnv(gym.Env):
             # self.state[0] += \
             #     self.state[index + 1] * min(abs(action), self.state[index + PLANT_DIM + 1]) * \
             #     (1 - TRANSACTION_FEE_PERCENT)
-            self.state[0] += \
-                self.state[index + 1] * min(abs(action), self.state[index + PLANT_DIM + 1]) * \
-                (1 - TRANSACTION_FEE_PERCENT)
-
+            self.state[0] += (self.state[3]-call_model(action))*TRANSACTION_FEE_PERCENT
             # update held shares
             self.state[index + PLANT_DIM + 1] -= min(abs(action), self.state[index + PLANT_DIM + 1])
-            # update transaction costs
-            self.cost += self.state[index + 1] * min(abs(action), self.state[index + PLANT_DIM + 1]) * \
-                         TRANSACTION_FEE_PERCENT
+            # # update transaction costs
+            # self.cost += self.state[index + 1] * min(abs(action), self.state[index + PLANT_DIM + 1]) * \
+            #              TRANSACTION_FEE_PERCENT
             self.trades += 1
         else:
             pass
@@ -76,13 +73,12 @@ class BWTPEnv(gym.Env):
         # perform buy action based on the sign of the action
         available_amount = self.state[0] // self.state[index + 1]
         # update balance
-        self.state[0] -= self.state[index + 1] * min(available_amount, action) * \
-                         (1 + TRANSACTION_FEE_PERCENT)
+        self.state[0] -= (self.state[3]-call_model(action))
         # update held shares
         self.state[index + PLANT_DIM + 1] += min(available_amount, action)
-        # update transaction costs
-        self.cost += self.state[index + 1] * min(available_amount, action) * \
-                     TRANSACTION_FEE_PERCENT
+        # # update transaction costs
+        # self.cost += self.state[index + 1] * min(available_amount, action) * \
+        #              TRANSACTION_FEE_PERCENT
         self.trades += 1
 
 
