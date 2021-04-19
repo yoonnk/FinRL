@@ -8,6 +8,8 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
+from dl_for_env import call_model
+
 # Global variables
 HMAX_NORMALIZE = 20
 INITIAL_ACCOUNT_BALANCE = 0
@@ -54,9 +56,13 @@ class BWTPEnv(gym.Env):
         # perform sell action based on the sign of the action
         if self.state[index + PLANT_DIM + 1] > 0:
             # update balance
+            # self.state[0] += \
+            #     self.state[index + 1] * min(abs(action), self.state[index + PLANT_DIM + 1]) * \
+            #     (1 - TRANSACTION_FEE_PERCENT)
             self.state[0] += \
                 self.state[index + 1] * min(abs(action), self.state[index + PLANT_DIM + 1]) * \
                 (1 - TRANSACTION_FEE_PERCENT)
+
             # update held shares
             self.state[index + PLANT_DIM + 1] -= min(abs(action), self.state[index + PLANT_DIM + 1])
             # update transaction costs
