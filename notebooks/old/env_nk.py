@@ -9,9 +9,9 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 # Global variables
-HMAX_NORMALIZE = 200
-INITIAL_ACCOUNT_BALANCE = 100000
-STOCK_DIM = 1
+HMAX_NORMALIZE = 20
+INITIAL_ACCOUNT_BALANCE = 0
+PLANT_DIM = 1
 
 # transaction fee: 1/1000 reasonable percentage
 TRANSACTION_FEE_PERCENT = 0.001
@@ -26,8 +26,8 @@ class BWTPEnv(gym.Env):
         # date increment
         self.day = day
         self.df = df
-        # action_space normalization and the shape is STOCK_DIM
-        self.action_space = spaces.Box(low=-1, high=1, shape=(STOCK_DIM,))
+        # action_space normalization and the shape is PLANT_DIM
+        self.action_space = spaces.Box(low=-1, high=1, shape=(PLANT_DIM,))
         # Shape = 4: [Current Balance]+[prices]+[owned shares] +[macd]
         self.observation_space = spaces.Box(low=0, high=np.inf, shape=(4,))
         # load data from a pandas dataframe
@@ -39,8 +39,8 @@ class BWTPEnv(gym.Env):
         # initalize state
         self.state = [INITIAL_ACCOUNT_BALANCE] + \
                      [self.data.flow] + \
-                     [0] * STOCK_DIM + \
-                     [self.data.CIP]
+                     [0] * PLANT_DIM + \
+                     [self.data.pressure]
         # initialize reward and cost
         self.reward = 0
         self.cost = 0
@@ -52,19 +52,32 @@ class BWTPEnv(gym.Env):
 
     def _increase_pressure(self, index, action):
         # perform sell action based on the sign of the action
-        if self.state[index + STOCK_DIM + 1] > 0:
+        if self.state[index + PLANT_DIM + 1] > 0:
             # update balance
             self.state[0] += \
-                self.state[index + 1] * min(abs(action), self.state[index + STOCK_DIM + 1]) * \
+                self.state[index + 1] * min(abs(action), self.state[index + PLANT_DIM + 1]) * \
                 (1 - TRANSACTION_FEE_PERCENT)
             # update held shares
-            self.state[index + STOCK_DIM + 1] -= min(abs(action), self.state[index + STOCK_DIM + 1])
+            self.state[index + PLANT_DIM + 1] -= min(abs(action), self.state[index + PLANT_DIM + 1])
             # update transaction costs
-            self.cost += self.state[index + 1] * min(abs(action), self.state[index + STOCK_DIM + 1]) * \
+            self.cost += self.state[index + 1] * min(abs(action), self.state[index + PLANT_DIM + 1]) * \
                          TRANSACTION_FEE_PERCENT
             self.trades += 1
         else:
             pass
+
+    def _decrease_pressure(self, index, action):
+        # perform buy action based on the sign of the action
+        available_amount = self.state[0] // self.state[index + 1]
+        # update balance
+        self.state[0] -= self.state[index + 1] * min(available_amount, action) * \
+                         (1 + TRANSACTION_FEE_PERCENT)
+        # update held shares
+        self.state[index + PLANT_DIM + 1] += min(available_amount, action)
+        # update transaction costs
+        self.cost += self.state[index + 1] * min(available_amount, action) * \
+                     TRANSACTION_FEE_PERCENT
+        self.trades += 1
 
 
     def step(self, actions):
@@ -76,15 +89,15 @@ class BWTPEnv(gym.Env):
             plt.close()
 
             end_total_asset = self.state[0] + \
-                              sum(np.array(self.state[1:(STOCK_DIM + 1)]) * np.array(
-                                  self.state[(STOCK_DIM + 1):(STOCK_DIM * 2 + 1)]))
+                              sum(np.array(self.state[1:(PLANT_DIM + 1)]) * np.array(
+                                  self.state[(PLANT_DIM + 1):(PLANT_DIM * 2 + 1)]))
             print("previous_total_asset:{}".format(self.asset_memory[0]))
             print("end_total_asset:{}".format(end_total_asset))
 
             df_total_value = pd.DataFrame(self.asset_memory)
             df_total_value.to_csv('account_value.csv')
-            print("total_reward:{}".format(self.state[0] + sum(np.array(self.state[1:(STOCK_DIM + 1)]) * np.array(
-                self.state[(STOCK_DIM + 1):(STOCK_DIM * 2 + 1)])) - INITIAL_ACCOUNT_BALANCE))
+            print("total_reward:{}".format(self.state[0] + sum(np.array(self.state[1:(PLANT_DIM + 1)]) * np.array(
+                self.state[(PLANT_DIM + 1):(PLANT_DIM * 2 + 1)])) - INITIAL_ACCOUNT_BALANCE))
             print("total_cost: ", self.cost)
             print("total trades: ", self.trades)
 
@@ -105,30 +118,34 @@ class BWTPEnv(gym.Env):
             actions = actions * HMAX_NORMALIZE
             # calculate begining total asset
             begin_total_asset = self.state[0] + \
-                                sum(np.array(self.state[1:(STOCK_DIM + 1)]) * np.array(
-                                    self.state[(STOCK_DIM + 1):(STOCK_DIM * 2 + 1)]))
+                                sum(np.array(self.state[1:(PLANT_DIM + 1)]) * np.array(
+                                    self.state[(PLANT_DIM + 1):(PLANT_DIM * 2 + 1)]))
 
             # perform buy or sell action
             argsort_actions = np.argsort(actions)
-            sell_index = argsort_actions[:np.where(actions < 0)[0].shape[0]]
+            increase_index = argsort_actions[:np.where(actions < 0)[0].shape[0]]
+            decrease_index = argsort_actions[::-1][:np.where(actions > 0)[0].shape[0]]
 
-            for index in sell_index:
+            for index in increase_index:
                 # print('take sell action'.format(actions[index]))
                 self._increase_pressure(index, actions[index])
 
+            for index in decrease_index:
+                # print('take buy action: {}'.format(actions[index]))
+                self._decrease_pressure(index, actions[index])
             # update data, walk a step s'
             self.day += 1
             self.data = self.df.loc[self.day, :]
             # load next state
             self.state = [self.state[0]] + \
                          [self.data.flow] + \
-                         list(self.state[(STOCK_DIM + 1):(STOCK_DIM * 2 + 1)]) + \
-                         [self.data.CIP]
+                         list(self.state[(PLANT_DIM + 1):(PLANT_DIM * 2 + 1)]) + \
+                         [self.data.pressure]
 
             # calculate the end total asset
             end_total_asset = self.state[0] + \
-                              sum(np.array(self.state[1:(STOCK_DIM + 1)]) * np.array(
-                                  self.state[(STOCK_DIM + 1):(STOCK_DIM * 2 + 1)]))
+                              sum(np.array(self.state[1:(PLANT_DIM + 1)]) * np.array(
+                                  self.state[(PLANT_DIM + 1):(PLANT_DIM * 2 + 1)]))
             self.reward = end_total_asset - begin_total_asset
             self.rewards_memory.append(self.reward)
             # self.reward = self.reward * REWARD_SCALING
@@ -147,8 +164,8 @@ class BWTPEnv(gym.Env):
         # initiate state
         self.state = [INITIAL_ACCOUNT_BALANCE] + \
                      [self.data.flow] + \
-                     [0] * STOCK_DIM + \
-                     [self.data.CIP]
+                     [0] * PLANT_DIM + \
+                     [self.data.pressure]
         return self.state
 
     def render(self, mode='human'):
