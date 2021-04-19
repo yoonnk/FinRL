@@ -16,7 +16,7 @@ session = tf.compat.v1.Session(config=config)
 
 tf.compat.v1.disable_eager_execution()
 
-def call_model(self, flow_rate):
+def call_model(flow_rate):
     cpath = r"C:\Users\USER\Desktop\test_dl4seq\results\20210412_132712\config.json"
 
     df = pd.read_excel(r'C:\Users\USER\Desktop\test_dl4seq\data\1YRDATA.xlsx')
@@ -36,6 +36,6 @@ def call_model(self, flow_rate):
 
 
     # preds = model.predict(use_datetime_index= True)
-    self.preds = model.predict(flow_rate, use_datetime_index=True)
+    preds = model.predict(flow_rate, use_datetime_index=True)
 
-    return self.preds
+    return preds
