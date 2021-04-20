@@ -27,15 +27,33 @@ def call_model(flow_rate):
     # inputs = ['유입압력']  # 'Conductivity_in', 'Conductivity_out', 'pH_in', 'Voltage'
     # outputs = ["FLUXSFX"]
 
-
     model = Model.from_config(cpath,data=df)
-
 
     #history = model.fit(data=df, indice='random')
     model.load_weights('weights_010_0.07438.hdf5')
 
-
     # preds = model.predict(use_datetime_index= True)
     preds = model.predict(flow_rate, use_datetime_index=True)
+    predic = preds[1][0]
 
-    return preds
+    return int(predic)
+
+# cpath = r"C:\Users\USER\Desktop\test_dl4seq\results\20210412_132712\config.json"
+#
+# df = pd.read_excel(r'C:\Users\USER\Desktop\test_dl4seq\data\1YRDATA.xlsx')
+#     # df.index = pd.to_datetime(df['date'])
+#     # df = df.dropna(axis=0)
+# df.index = pd.date_range("20110101", periods=len(df), freq='S')
+#
+#     # inputs = ['유입압력']  # 'Conductivity_in', 'Conductivity_out', 'pH_in', 'Voltage'
+#     # outputs = ["FLUXSFX"]
+#
+# model = Model.from_config(cpath,data=df)
+#
+#     #history = model.fit(data=df, indice='random')
+# model.load_weights('weights_010_0.07438.hdf5')
+#
+#     # preds = model.predict(use_datetime_index= True)
+# preds = model.predict(22, use_datetime_index=True)
+# predic = int(preds[1][0])
+

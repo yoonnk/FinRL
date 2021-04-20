@@ -12,7 +12,7 @@ from dl_for_env import call_model
 
 # Global variables
 HMAX_NORMALIZE = 20
-INITIAL_ACCOUNT_BALANCE = 0
+INITIAL_ACCOUNT_BALANCE = 10000
 PLANT_DIM = 1
 
 # transaction fee: 1/1000 reasonable percentage
@@ -59,7 +59,7 @@ class BWTPEnv(gym.Env):
             # self.state[0] += \
             #     self.state[index + 1] * min(abs(action), self.state[index + PLANT_DIM + 1]) * \
             #     (1 - TRANSACTION_FEE_PERCENT)
-            self.state[0] += (self.state[3]-call_model(action))*TRANSACTION_FEE_PERCENT
+            self.state[0] += (self.state[3]-call_model(int(action)))*TRANSACTION_FEE_PERCENT
             # update held shares
             self.state[index + PLANT_DIM + 1] -= min(abs(action), self.state[index + PLANT_DIM + 1])
             # # update transaction costs
@@ -73,7 +73,7 @@ class BWTPEnv(gym.Env):
         # perform buy action based on the sign of the action
         available_amount = self.state[0] // self.state[index + 1]
         # update balance
-        self.state[0] -= (self.state[3]-call_model(action))
+        self.state[0] -= (self.state[3]-call_model(int(action)))
         # update held shares
         self.state[index + PLANT_DIM + 1] += min(available_amount, action)
         # # update transaction costs
