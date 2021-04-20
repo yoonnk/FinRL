@@ -33,7 +33,7 @@ def call_model(flow_rate):
     model.load_weights('weights_010_0.07438.hdf5')
 
     # preds = model.predict(use_datetime_index= True)
-    preds = model.predict(flow_rate, use_datetime_index=True)
+    preds = model.predict(st=flow_rate, en=flow_rate+2, use_datetime_index=True)
     predic = preds[1][0]
 
     return int(predic)
