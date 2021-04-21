@@ -125,7 +125,6 @@ class BWTPEnv(gym.Env):
             return self.state, self.reward, self.terminal, {}
 
         else:
-
             if self.state[1] < 23-3:
                 actions = 5
             if self.state[1] > 23+3:
@@ -143,11 +142,11 @@ class BWTPEnv(gym.Env):
 
             for index in increase_index:
                 # print('take sell action'.format(actions[index]))
-                self._increase_pressure(index, actions[index])
+                self._increase_pressure(index, actions)
 
             for index in decrease_index:
                 # print('take buy action: {}'.format(actions[index]))
-                self._decrease_pressure(index, actions[index])
+                self._decrease_pressure(index, actions)
 
             self.day += 1
             self.data = self.df.loc[self.day, :]
