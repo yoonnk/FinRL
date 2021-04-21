@@ -16,7 +16,7 @@ session = tf.compat.v1.Session(config=config)
 
 tf.compat.v1.disable_eager_execution()
 
-def call_model(flow_rate):
+def call_model(PRESSURE):
     cpath = r"C:\Users\USER\Desktop\test_dl4seq\results\20210412_132712\config.json"
 
     df = pd.read_excel(r'C:\Users\USER\Desktop\test_dl4seq\data\1YRDATA.xlsx')
@@ -33,7 +33,7 @@ def call_model(flow_rate):
     model.load_weights('weights_010_0.07438.hdf5')
 
     # preds = model.predict(use_datetime_index= True)
-    preds = model.predict(st=flow_rate, en=flow_rate+2, use_datetime_index=True)
+    preds = model.predict(st=0, en=3, use_datetime_index=True)
     predic = preds[1][0]
 
     return int(predic)
