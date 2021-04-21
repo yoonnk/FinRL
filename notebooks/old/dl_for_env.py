@@ -33,10 +33,15 @@ def call_model(PRESSURE):
     model.load_weights('weights_024_0.07451.hdf5')
 
     # preds = model.predict(use_datetime_index= True)
-    preds = model.predict(st=0, en=3, use_datetime_index=True)
-    predic = preds[1][0]
+    PP = [PRESSURE, PRESSURE]
+    ppp = np.array(PP)
+    # preds = model.predict(use_datetime_index= True)
+    p = ppp.reshape(1, 2, 1)
+    preds = model._model.predict(x=p)
+    # preds = model.predict(st=0, en=3, use_datetime_index=True)
+    predic = preds[0][0][0]
 
-    return int(predic)
+    return predic
 
 # cpath = r"C:\Users\USER\Desktop\test_dl4seq\results\20210412_132712\config.json"
 #
@@ -56,4 +61,24 @@ def call_model(PRESSURE):
 #     # preds = model.predict(use_datetime_index= True)
 # preds = model.predict(22, use_datetime_index=True)
 # predic = int(preds[1][0])
+
+cpath = r"C:\Users\USER\Desktop\test_dl4seq\results\20210421_203406\config.json"
+
+df = pd.read_excel(r'C:\Users\USER\Desktop\test_dl4seq\data\1YRDATA.xlsx')
+    # df.index = pd.to_datetime(df['date'])
+    # df = df.dropna(axis=0)
+df.index = pd.date_range("20110101", periods=len(df), freq='S')
+
+    # inputs = ['유입압력']  # 'Conductivity_in', 'Conductivity_out', 'pH_in', 'Voltage'
+    # outputs = ["FLUXSFX"]
+
+model = Model.from_config(cpath,data=df)
+
+    #history = model.fit(data=df, indice='random')
+model.load_weights('weights_024_0.07451.hdf5')
+PP=[22,22]
+PRESSURE = np.array(PP)
+    # preds = model.predict(use_datetime_index= True)
+p = PRESSURE.reshape(1,2,1)
+preds = model._model.predict(x=p)
 
