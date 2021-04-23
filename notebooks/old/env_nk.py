@@ -62,7 +62,9 @@ class BWTPEnv(gym.Env):
         # perform sell action based on the sign of the action
         if self.state[index + PLANT_DIM + 1] > 0:
 
-            self.state[0]+= (self.state[3]-call_model(action))*TRANSACTION_FEE_PERCENT
+            # self.state[0]+= (self.state[3]-call_model(action))*TRANSACTION_FEE_PERCENT
+            self.state[1] = call_model(self.state[3]+action)
+            self.state[0] += action * TRANSACTION_FEE_PERCENT+self.state[1]*10
             self.state[index + PLANT_DIM + 1] -= min(abs(action), self.state[index + PLANT_DIM + 1])
             self.trades += 1
             # # update balance
@@ -86,7 +88,8 @@ class BWTPEnv(gym.Env):
         # perform buy action based on the sign of the action
         available_amount = self.state[0] // self.state[index + 1]
         # update balance
-        self.state[0] -= (self.state[3]-call_model(int(action)))
+        self.state[1] = call_model(self.state[3]+action)
+        self.state[0] -= action-self.state[1]*10
         # update held shares
         self.state[index + PLANT_DIM + 1] += min(available_amount, action)
         # # update transaction costs
@@ -180,8 +183,8 @@ class BWTPEnv(gym.Env):
 
             # perform buy or sell action
             argsort_actions = np.argsort(actions)
-            increase_index = argsort_actions[:np.where(actions < 0)[0].shape[0]]
-            decrease_index = argsort_actions[::-1][:np.where(actions > 0)[0].shape[0]]
+            decrease_index = argsort_actions[:np.where(actions < 0)[0].shape[0]]
+            increase_index = argsort_actions[::-1][:np.where(actions > 0)[0].shape[0]]
 
             for index in increase_index:
                 # print('take sell action'.format(actions[index]))
