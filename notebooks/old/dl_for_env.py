@@ -16,25 +16,39 @@ session = tf.compat.v1.Session(config=config)
 
 tf.compat.v1.disable_eager_execution()
 
+cpath = r"C:\Users\USER\Desktop\test_dl4seq\results\20210421_203406\config.json"
+
+df = pd.read_excel(r'C:\Users\USER\Desktop\test_dl4seq\data\1YRDATA.xlsx')
+# df.index = pd.to_datetime(df['date'])
+# df = df.dropna(axis=0)
+df.index = pd.date_range("20110101", periods=len(df), freq='S')
+
+# inputs = ['유입압력']  # 'Conductivity_in', 'Conductivity_out', 'pH_in', 'Voltage'
+# outputs = ["FLUXSFX"]
+
+model = Model.from_config(cpath, data=df)
+
+# history = model.fit(data=df, indice='random')
+model.load_weights('weights_024_0.07451.hdf5')
+
+# def call_model(PRESSURE):
+#
+#     # preds = model.predict(use_datetime_index= True)
+#     #PP = [PRESSURE, PRESSURE]
+#     ppp = np.array(PRESSURE)
+#     # preds = model.predict(use_datetime_index= True)
+#     p = ppp.reshape(1, 2, 1)
+#     preds = model._model.predict(x=p)
+#     # preds = model.predict(st=0, en=3, use_datetime_index=True)
+#     predic = preds[0][0][0]
+#
+#     return predic
+
 def call_model(PRESSURE):
-    cpath = r"C:\Users\USER\Desktop\test_dl4seq\results\20210421_203406\config.json"
-
-    df = pd.read_excel(r'C:\Users\USER\Desktop\test_dl4seq\data\1YRDATA.xlsx')
-    # df.index = pd.to_datetime(df['date'])
-    # df = df.dropna(axis=0)
-    df.index = pd.date_range("20110101", periods=len(df), freq='S')
-
-    # inputs = ['유입압력']  # 'Conductivity_in', 'Conductivity_out', 'pH_in', 'Voltage'
-    # outputs = ["FLUXSFX"]
-
-    model = Model.from_config(cpath,data=df)
-
-    #history = model.fit(data=df, indice='random')
-    model.load_weights('weights_024_0.07451.hdf5')
 
     # preds = model.predict(use_datetime_index= True)
-    PP = [PRESSURE, PRESSURE]
-    ppp = np.array(PP)
+    #PP = [PRESSURE, PRESSURE]
+    ppp = np.array(PRESSURE)
     # preds = model.predict(use_datetime_index= True)
     p = ppp.reshape(1, 2, 1)
     preds = model._model.predict(x=p)
@@ -42,6 +56,7 @@ def call_model(PRESSURE):
     predic = preds[0][0][0]
 
     return predic
+
 
 # cpath = r"C:\Users\USER\Desktop\test_dl4seq\results\20210412_132712\config.json"
 #

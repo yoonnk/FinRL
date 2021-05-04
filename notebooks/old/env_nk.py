@@ -12,7 +12,7 @@ from dl_for_env import call_model
 
 # Global variables
 HMAX_NORMALIZE = 20
-INITIAL_ACCOUNT_BALANCE = 1000
+INITIAL_ENERGY = 1000
 PLANT_DIM = 1
 
 # transaction fee: 1/1000 reasonable percentage
@@ -39,7 +39,7 @@ class BWTPEnv(gym.Env):
         # save the total number of trades
         self.trades = 0
         # initalize state
-        self.state = [INITIAL_ACCOUNT_BALANCE] + \
+        self.state = [INITIAL_ENERGY] + \
                      [self.data.flow] + \
                      [0] * PLANT_DIM + \
                      [self.data.pressure]
@@ -48,7 +48,7 @@ class BWTPEnv(gym.Env):
         self.cost = 0
 
         # memorize the total value, total rewards
-        self.asset_memory = [INITIAL_ACCOUNT_BALANCE]
+        self.asset_memory = [INITIAL_ENERGY]
         self.rewards_memory = []
 
 
@@ -115,7 +115,7 @@ class BWTPEnv(gym.Env):
             df_total_value = pd.DataFrame(self.asset_memory)
             df_total_value.to_csv('account_value.csv')
             print("total_reward:{}".format(self.state[0] + sum(np.array(self.state[1:(PLANT_DIM + 1)]) * np.array(
-                self.state[(PLANT_DIM + 1):(PLANT_DIM * 2 + 1)])) - INITIAL_ACCOUNT_BALANCE))
+                self.state[(PLANT_DIM + 1):(PLANT_DIM * 2 + 1)])) - INITIAL_ENERGY))
             print("total_cost: ", self.cost)
             print("total trades: ", self.trades)
 
@@ -214,7 +214,7 @@ class BWTPEnv(gym.Env):
         return self.state, self.reward, self.terminal, {}
 
     def reset(self):
-        self.asset_memory = [INITIAL_ACCOUNT_BALANCE]
+        self.asset_memory = [INITIAL_ENERGY]
         self.day = 0
         self.data = self.df.loc[self.day, :]
         self.cost = 0
@@ -222,7 +222,7 @@ class BWTPEnv(gym.Env):
         self.terminal = False
         self.rewards_memory = []
         # initiate state
-        self.state = [INITIAL_ACCOUNT_BALANCE] + \
+        self.state = [INITIAL_ENERGY] + \
                      [self.data.flow] + \
                      [0] * PLANT_DIM + \
                      [self.data.pressure]

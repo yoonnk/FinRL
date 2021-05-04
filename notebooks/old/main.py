@@ -1,7 +1,7 @@
 
 import yfinance as yf
 from stockstats import StockDataFrame as Sdf
-from env_nk import BWTPEnv
+from env_nk_SEC import BWTPEnv
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -43,13 +43,15 @@ warnings.filterwarnings('ignore')
 
 # Download and save the data in a pandas DataFrame:
 # data_df = yf.download("AAPL", start="2009-01-01", end="2020-10-23")
-data_df = pd.read_excel(r'C:\Users\USER\Desktop\FinRL\data\1YRDATA_rl.xlsx')
-# data_df.shape
+data_df = pd.read_excel(r'C:\Users\USER\Desktop\FinRL\data\1YRDATA_rl3.xlsx',
+                        usecols=['pressure', 'flow'], nrows=8760)
+print(data_df.shape)
 # data_df.head()
 # data_df.columns
 
 # reset the index, we want to use numbers instead of dates
 data_df=data_df.reset_index()
+print(data_df.shape)
 # data_df.index = pd.date_range("20110101", periods=len(df), freq='S')
 
 # convert the column names to standardized names
@@ -74,6 +76,7 @@ data_df=data_df.reset_index()
 # data_df.head()
 # if missing data is true,
 data_df=data_df.fillna(method='bfill')
+print(data_df.shape, 'after filling na')
 
 # Note that I always use a copy of the original data to try it track step by step.
 data_clean = data_df.copy()
@@ -81,7 +84,7 @@ data_clean = data_df.copy()
 # data_clean.tail()
 
 
-train = data_clean[1:1000]
+train = data_clean[1:5000]
 # the index needs to start from 0
 train=train.reset_index(drop=True)
 # train.head()
@@ -89,10 +92,10 @@ train=train.reset_index(drop=True)
 #tensorboard --logdir ./single_stock_tensorboard/
 env_train = DummyVecEnv([lambda: BWTPEnv(train)])
 model_ppo = PPO2('MlpPolicy', env_train, tensorboard_log="./single_stock_trading_2_tensorboard/")
-model_ppo.learn(total_timesteps=1000,tb_log_name="run_aapl_ppo")
+model_ppo.learn(total_timesteps=100000,tb_log_name="run_aapl_ppo")
 #model.save('AAPL_ppo_100k')
 
-test = data_clean[1000: ]
+test = data_clean[5000: ]
 # the index needs to start from 0
 test=test.reset_index(drop=True)
 
@@ -101,10 +104,11 @@ env_test = DummyVecEnv([lambda: BWTPEnv(test)])
 obs_test = env_test.reset()
 print("==============Model Prediction===========")
 
-for i in range(len(test.index.unique())):
-    action, _states = model.predict(obs_test)
-    obs_test, rewards, dones, info = env_test.step(action)
-    env_test.render()
+# for i in range(len(test.index.unique())):
+#     print("testing", i, "th")
+#     action, _states = model.predict(obs_test)
+#     obs_test, rewards, dones, info = env_test.step(action)
+#     env_test.render()
 
 # df_total_value = get_DRL_sharpe()
 # get_buy_and_hold_sharpe(test)
