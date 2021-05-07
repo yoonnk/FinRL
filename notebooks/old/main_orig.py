@@ -1,7 +1,7 @@
 
 import yfinance as yf
 from stockstats import StockDataFrame as Sdf
-from env_nk_SEC import BWTPEnv
+from environment import SingleStockEnv
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -42,35 +42,27 @@ warnings.filterwarnings('ignore')
 
 
 # Download and save the data in a pandas DataFrame:
-# data_df = yf.download("AAPL", start="2009-01-01", end="2020-10-23")
-data_df = pd.read_excel(r'C:\Users\USER\Desktop\FinRL\data\DataforRL.xlsx',
-                        usecols=['pressure', 'flowrate', 'Total'], nrows=3876)
-#8760
-# print(data_df.shape)
-# data_df.head()
-# data_df.columns
+data_df = yf.download("AAPL", start="2009-01-01", end="2020-10-23")
+
 
 # reset the index, we want to use numbers instead of dates
 data_df=data_df.reset_index()
-# print(data_df.shape)
-# data_df.index = pd.date_range("20110101", periods=len(df), freq='S')
 
 # convert the column names to standardized names
-# data_df.columns = ['datadate','open','high','low','close','adjcp','volume']
-# inputs = ['유입압력']  # 'Conductivity_in', 'Conductivity_out', 'pH_in', 'Voltage'
-# outputs = ["FLUXSFX"]
+data_df.columns = ['datadate','open','high','low','close','adjcp','volume']
+
 
 # save the data to a csv file in your current folder
-# data_df.to_csv('AAPL_2009_2020.csv')
+data_df.to_csv('AAPL_2009_2020.csv')
 
 # check missing data
 # data_df.isnull().values.any()
 
 # calculate technical indicators like MACD
-# stock = Sdf.retype(data_df.copy())
+stock = Sdf.retype(data_df.copy())
 # we need to use adjusted close price instead of close price
-# stock['close'] = stock['adjcp']
-# data_df['macd'] = stock['macd']
+stock['close'] = stock['adjcp']
+data_df['macd'] = stock['macd']
 
 # check missing data
 # data_df.isnull().values.any()
@@ -91,9 +83,9 @@ train=train.reset_index(drop=True)
 # train.head()
 
 #tensorboard --logdir ./single_stock_tensorboard/
-env_train = DummyVecEnv([lambda: BWTPEnv(train)])
+env_train = DummyVecEnv([lambda: SingleStockEnv(train)])
 model_ppo = PPO2('MlpPolicy', env_train, tensorboard_log="./single_stock_trading_2_tensorboard/")
-model_ppo.learn(total_timesteps=10000,tb_log_name="run_aapl_ppo")
+model_ppo.learn(total_timesteps=100000,tb_log_name="run_aapl_ppo")
 #model.save('AAPL_ppo_100k')
 
 test = data_clean[2000: ]
@@ -101,7 +93,7 @@ test = data_clean[2000: ]
 test=test.reset_index(drop=True)
 
 model = model_ppo
-env_test = DummyVecEnv([lambda: BWTPEnv(test)])
+env_test = DummyVecEnv([lambda: SingleStockEnv(test)])
 obs_test = env_test.reset()
 print("==============Model Prediction===========")
 

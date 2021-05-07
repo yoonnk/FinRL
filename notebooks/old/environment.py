@@ -89,6 +89,11 @@ class SingleStockEnv(gym.Env):
             plt.savefig('account_value.png')
             plt.close()
 
+            plt.close('all')
+            plt.plot(self.rewards_memory)
+            plt.savefig('reward.png')
+            plt.close()
+
             end_total_asset = self.state[0] + \
                               sum(np.array(self.state[1:(STOCK_DIM + 1)]) * np.array(
                                   self.state[(STOCK_DIM + 1):(STOCK_DIM * 2 + 1)]))
