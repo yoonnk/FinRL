@@ -190,7 +190,7 @@ class BWTPEnv(gym.Env):
             return self.state, self.reward, self.terminal, {}
 
         else:
-            actions = actions *5 + 10 # * HMAX_NORMALIZE
+            actions = actions * 2 + 8 # * HMAX_NORMALIZE
             self.change_pressure(actions)
 
             # update data, walk a step s'
