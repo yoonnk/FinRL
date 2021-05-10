@@ -16,13 +16,16 @@ from stable_baselines.common.policies import MlpPolicy
 import warnings
 warnings.filterwarnings('ignore')
 
-data_df = pd.read_excel(r'C:\Users\USER\Desktop\FinRL\data\data_betwwen_CIP.xlsx',
-                        usecols=['MF_TURBIDITY', 'FEED_TEMPERATURE', 'FEED_TDS', 'FEED_FLOWRATE', 'FEED_PRESSURE', 'CIP', 'FLOWRATE'], nrows=815)
+def read_cip():
+    data_df = pd.read_excel(r'TOATHER/data_betwwen_CIP.xlsx',
+                            usecols=['MF_TURBIDITY', 'FEED_TEMPERATURE', 'FEED_TDS', 'FEED_FLOWRATE', 'FEED_PRESSURE', 'CIP', 'FLOWRATE'], nrows=815)
 
-data_df=data_df.reset_index()
-data_df=data_df.fillna(method='bfill')
-data_clean = data_df.copy()
+    data_df=data_df.reset_index()
+    data_df=data_df.fillna(method='bfill')
+    _data_clean = data_df.copy()
+    return _data_clean
 
+data_clean = read_cip()
 train = data_clean[0:600]
 # the index needs to start from 0
 train=train.reset_index(drop=True)

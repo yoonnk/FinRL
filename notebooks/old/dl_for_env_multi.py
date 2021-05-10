@@ -17,9 +17,9 @@ session = tf.compat.v1.Session(config=config)
 
 tf.compat.v1.disable_eager_execution()
 
-cpath = r"C:\Users\USER\Desktop\test_dl4seq\results\new_for_RL2\20210510_133918\config.json"
+cpath = r"TOATHER/20210510_133918/config.json"
 
-df = pd.read_excel(r'C:\Users\USER\Desktop\FinRL\data\data_betwwen_CIP.xlsx')
+df = pd.read_excel(r'TOATHER/data_betwwen_CIP.xlsx')
 df.index = pd.date_range("20110101", periods=len(df), freq='S')
 
 
