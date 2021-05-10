@@ -4,11 +4,12 @@ from gym.utils import seeding
 import gym
 from gym import spaces
 import matplotlib
+from sklearn.preprocessing import MinMaxScaler
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-from dl_for_env import call_model
+from dl_for_env_multi import call_model
 
 # Global variables
 PLANT_DIM = 1
@@ -23,13 +24,13 @@ REWARD_SCALING = 1e-2
 class BWTPEnv(gym.Env):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, df, day=0):
+    def __init__(self, df, day=2):
         # super(StockEnv, self).__init__()
         # date increment
         self.day = day
         self.df = df
         # action_space normalization and the shape is PLANT_DIM
-        self.action_space = spaces.Box(low=6, high=10, shape=(PLANT_DIM,))
+        self.action_space = spaces.Box(low=-1, high=1, shape=(PLANT_DIM,))
         # Shape = 4: [Current Balance]+[prices]+[owned shares] +[macd]
         self.observation_space = spaces.Box(low=0, high=np.inf, shape=(8,))
         # load data from a pandas dataframe
@@ -67,10 +68,11 @@ class BWTPEnv(gym.Env):
         self.rewardsum_memory = []
         self.energy_difference_memory = []
         self.total_energy_difference_memory = []
-        self.action_container = [float(self.df['pressure'].mean()) for _ in range(lookback_size)]
+        self.action_container = self.df['FEED_PRESSURE'][0:3].to_list()
         self.total_actual_energy = 0
         # self.total_actual_energy = 1502.87059974546
         self.action_memory = []
+        self.memory = []
 
     def change_pressure(self, action):
 
@@ -80,49 +82,62 @@ class BWTPEnv(gym.Env):
 
         self.actual_flowrate = self.state[7]
         self.actual_pressure = self.state[5]
-        self.actual_energy = (((self.actual_flowrate * self.actual_pressure) / EFF_PUMP) - (
-                    ((self.actual_pressure - EFF_ERD * (self.actual_pressure - 3)) * (self.state[4] - self.actual_flowrate)) / EFF_PUMP)) / (self.actual_flowrate * 36)
-        # self.total_actual_energy += self.state[2]
-        # update balance
-        self.state[7] = call_model(self.action_container) * 13
-        self.state[5] = action
-        # self.state[3] = action[-1]
+
+        day = self.day
+        st = day-1
+        en = st + (lookback_size-1)
+        _inputs=  self.df.loc[st:en, :]
+        _inputs['FEED_PRESSURE'] = self.action_container
+        _flow_rate = _inputs.pop('FLOWRATE')
+        _inputs.pop('index')
+
+        prediction = call_model(_inputs.values.reshape(1, lookback_size, 6), _flow_rate.values[0:-1].reshape(1, lookback_size-1, 1))
+
+        self.state[7] = prediction * 0.5
+
+        self.state[5] = float(action)
         # energy consuption calculation
-        self.state[0] = \
-                (((self.state[7]*self.state[5])/EFF_PUMP)-(((self.state[5]-EFF_ERD*(self.state[5]-3))*(self.state[4]-self.state[7]))/EFF_PUMP))/(self.state[7]*36)
 
-        if 0.1 < self.state[0] < 0.6:
-            # self.state[5] = action[-1]
-            self.state[5] = action
-            self.optimize_energy = self.state[0]
-            self.total_optimize_energy += self.optimize_energy
-            self.total_actual_energy += self.actual_energy
+        self.actual_energy =\
+            ((self.state[4] * self.actual_pressure - EFF_PUMP * (self.actual_pressure - 3)) / 36 / EFF_ERD / self.actual_flowrate) + ((self.actual_pressure - EFF_PUMP * (self.actual_pressure - 3)) * (self.state[4] - self.actual_flowrate) / EFF_ERD / 36 /self.actual_flowrate)
 
-            self.energy_difference = self.actual_energy- self.optimize_energy
-            # self.total_energy_difference = self.total_self.actual_energy - self.total_optimize_energy
+        self.state[0] = ((self.state[4] * self.state[5] - EFF_PUMP * (self.state[5] - 3)) / 36 / EFF_ERD / self.state[
+            7]) + ((self.state[5] - EFF_PUMP * (self.state[5] - 3)) * (self.state[4] - self.state[7]) / EFF_ERD / 36 /
+                   self.state[7])
 
-            # update held shares
-            #self.state[index + PLANT_DIM + 1] += min(available_amount, action)
-            # # update transaction costs
-            self.cost += self.state[0]*10
-            self.trades += 1
+        self.memory.append([self.state[0], self.state[5], self.state[7], self.actual_energy])
+        #if 0.1 < self.state[0] < 0.6:  # theoretically the range of SEC should be between 0.1 and 0.6
 
-        else:
-            self.action_container[-1] = self.state[3]
-            self.state[0] = self.actual_energy
-            self.state[7] = self.actual_flowrate
-            self.state[5] = self.actual_pressure
-            self.optimize_energy = self.actual_energy
-            self.total_optimize_energy += self.optimize_energy
-            self.total_actual_energy += self.actual_energy
+        self.state[5] = action  # pressure
+        self.optimize_energy = self.state[0]
+        self.total_optimize_energy += self.optimize_energy
+        self.total_actual_energy += self.actual_energy
 
-            self.energy_difference = 0
-            # self.total_energy_difference = self.total_actual_energy - self.total_optimize_energy
+        self.energy_difference = self.actual_energy- self.optimize_energy
+        # self.total_energy_difference = self.total_self.actual_energy - self.total_optimize_energy
 
-            # update held shares
-            #self.state[index + PLANT_DIM + 1] += min(available_amount, action)
-            # # update transaction costs
-            self.cost += self.state[0]*10
+        # update held shares
+        #self.state[index + PLANT_DIM + 1] += min(available_amount, action)
+        # # update transaction costs
+        self.cost += self.state[0]*10
+        self.trades += 1
+
+        # else:
+        #     self.action_container[-1] = self.state[3]
+        #     self.state[0] = self.actual_energy
+        #     self.state[7] = self.actual_flowrate
+        #     self.state[5] = self.actual_pressure
+        #     self.optimize_energy = self.actual_energy
+        #     self.total_optimize_energy += self.optimize_energy
+        #     self.total_actual_energy += self.actual_energy
+        #
+        #     self.energy_difference = 0
+        #     # self.total_energy_difference = self.total_actual_energy - self.total_optimize_energy
+        #
+        #     # update held shares
+        #     #self.state[index + PLANT_DIM + 1] += min(available_amount, action)
+        #     # # update transaction costs
+        #     self.cost += self.state[0]*10
 
 
 
@@ -168,10 +183,14 @@ class BWTPEnv(gym.Env):
             df_rewards.to_csv('rewards_3.csv')
             # df_rewards = pd.DataFrame(self.rewardsum_memory)
             # df_rewards.to_csv('rewardsum_2.csv')
+
+            df = pd.DataFrame(self.memory, columns=['pred_energy', 'action', 'prediction', 'actual_engergy'])
+            df.to_csv('memory.csv')
+
             return self.state, self.reward, self.terminal, {}
 
         else:
-            actions = actions # * HMAX_NORMALIZE
+            actions = actions *5 + 10 # * HMAX_NORMALIZE
             self.change_pressure(actions)
 
             # update data, walk a step s'
@@ -205,7 +224,7 @@ class BWTPEnv(gym.Env):
 
     def reset(self):
         #self.energy_memory = [INITIAL_ENERGY]
-        self.day = 0
+        self.day = 2
         self.data = self.df.loc[self.day, :]
         self.cost = 0
         self.trades = 0
