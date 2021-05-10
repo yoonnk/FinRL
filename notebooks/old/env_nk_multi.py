@@ -11,17 +11,16 @@ import matplotlib.pyplot as plt
 from dl_for_env import call_model
 
 # Global variables
-# HMAX_NORMALIZE = 10
 PLANT_DIM = 1
 EFF_PUMP = 0.9
 EFF_ERD = 0.8
-FLOW_FEED = 1000
-lookback_size = 9
+# FLOW_FEED = 1000
+lookback_size = 3
 
 
 REWARD_SCALING = 1e-2
 
-class BWTPEnv3(gym.Env):
+class BWTPEnv(gym.Env):
     metadata = {'render.modes': ['human']}
 
     def __init__(self, df, day=0):
@@ -30,9 +29,9 @@ class BWTPEnv3(gym.Env):
         self.day = day
         self.df = df
         # action_space normalization and the shape is PLANT_DIM
-        self.action_space = spaces.Box(low=6, high=18, shape=(PLANT_DIM,))
+        self.action_space = spaces.Box(low=6, high=10, shape=(PLANT_DIM,))
         # Shape = 4: [Current Balance]+[prices]+[owned shares] +[macd]
-        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(4,))
+        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(8,))
         # load data from a pandas dataframe
         self.data = self.df.loc[self.day, :]
         # termination
@@ -41,9 +40,14 @@ class BWTPEnv3(gym.Env):
         self.trades = 0
         # initalize state
         self.state = [0.0] + \
-                     [self.data.flowrate] + \
-                     [self.data.Total] + \
-                 [self.data.pressure]
+                     [self.data.MF_TURBIDITY] + \
+                     [self.data.FEED_TEMPERATURE] + \
+                     [self.data.FEED_TDS] + \
+                     [self.data.FEED_FLOWRATE] + \
+                     [self.data.FEED_PRESSURE] + \
+                     [self.data.CIP] + \
+                     [self.data.FLOWRATE]
+
         # initialize reward and cost
         self.reward = 0
         self.cost = 0
@@ -51,6 +55,7 @@ class BWTPEnv3(gym.Env):
         self.total_energy_difference = 0
         self.total_reward = 0
         self.actual_flowrate = 0
+        self.actual_pressure = 0
         self.actual_energy = 0
         self.optimize_energy = 0
         # self.total_actual_energy = 0
@@ -68,47 +73,27 @@ class BWTPEnv3(gym.Env):
         self.action_memory = []
 
     def change_pressure(self, action):
-        #
-        # self.action_memory.append(action)
-        #
-        # self.action_container = np.roll(self.action_container, -1)
-        # self.action_container[-1] = action
-        #
-        # self.actual_energy = self.state[2]
-        # # self.total_actual_energy += self.state[2]
-        # # update balance
-        # self.state[1] = call_model(self.action_container)
-        # # self.state[3] = action[-1]
-        # # energy consuption calculation
-        # self.state[0] = \
-        #     (((self.state[1]*self.state[3])/EFF_PUMP)-(((self.state[3]-EFF_ERD*(self.state[3]-3))*(FLOW_FEED-self.state[1]))/EFF_PUMP))/(self.state[1]*100)
-        #
-        # self.state[3] = action[-1]
-        #
-        # self.optimize_energy = self.state[0]
-        # self.total_optimize_energy += self.optimize_energy
-        # self.total_actual_energy += self.actual_energy
-        #
-        # self.energy_difference = self.actual_energy - self.optimize_energy
-        # self.cost += self.energy_difference*10
-        # self.trades += 1
 
         self.action_memory.append(action)
         self.action_container = np.roll(self.action_container, -1)
         self.action_container[-1] = action
 
-        self.actual_energy = self.state[2]
-        self.actual_flowrate = self.state[1]
+        self.actual_flowrate = self.state[7]
+        self.actual_pressure = self.state[5]
+        self.actual_energy = (((self.actual_flowrate * self.actual_pressure) / EFF_PUMP) - (
+                    ((self.actual_pressure - EFF_ERD * (self.actual_pressure - 3)) * (self.state[4] - self.actual_flowrate)) / EFF_PUMP)) / (self.actual_flowrate * 36)
         # self.total_actual_energy += self.state[2]
         # update balance
-        self.state[1] = call_model(self.action_container) * 13
+        self.state[7] = call_model(self.action_container) * 13
+        self.state[5] = action
         # self.state[3] = action[-1]
         # energy consuption calculation
         self.state[0] = \
-                (((self.state[1]*self.state[3])/EFF_PUMP)-(((self.state[3]-EFF_ERD*(self.state[3]-3))*(FLOW_FEED-self.state[1]))/EFF_PUMP))/(self.state[1]*36)
+                (((self.state[7]*self.state[5])/EFF_PUMP)-(((self.state[5]-EFF_ERD*(self.state[5]-3))*(self.state[4]-self.state[7]))/EFF_PUMP))/(self.state[7]*36)
 
         if 0.1 < self.state[0] < 0.6:
-            self.state[3] = action[-1]
+            # self.state[5] = action[-1]
+            self.state[5] = action
             self.optimize_energy = self.state[0]
             self.total_optimize_energy += self.optimize_energy
             self.total_actual_energy += self.actual_energy
@@ -125,7 +110,8 @@ class BWTPEnv3(gym.Env):
         else:
             self.action_container[-1] = self.state[3]
             self.state[0] = self.actual_energy
-            self.state[1] = self.actual_flowrate
+            self.state[7] = self.actual_flowrate
+            self.state[5] = self.actual_pressure
             self.optimize_energy = self.actual_energy
             self.total_optimize_energy += self.optimize_energy
             self.total_actual_energy += self.actual_energy
@@ -192,10 +178,14 @@ class BWTPEnv3(gym.Env):
             self.day += 1
             self.data = self.df.loc[self.day, :]
 
-            self.state = [self.state[0]] + \
-                         [self.data.flowrate] + \
-                         [self.data.Total] + \
-                         [self.data.pressure]
+            self.state = [0.0] + \
+                         [self.data.MF_TURBIDITY] + \
+                         [self.data.FEED_TEMPERATURE] + \
+                         [self.data.FEED_TDS] + \
+                         [self.data.FEED_FLOWRATE] + \
+                         [self.data.FEED_PRESSURE] + \
+                         [self.data.CIP] + \
+                         [self.data.FLOWRATE]
 
             end_energy = self.state[0]
 
@@ -227,9 +217,13 @@ class BWTPEnv3(gym.Env):
         self.rewards_memory = []
         # initiate state
         self.state = [0.0] + \
-                     [self.data.flowrate] + \
-                     [self.data.Total] + \
-                     [self.data.pressure]
+                     [self.data.MF_TURBIDITY] + \
+                     [self.data.FEED_TEMPERATURE] + \
+                     [self.data.FEED_TDS] + \
+                     [self.data.FEED_FLOWRATE] + \
+                     [self.data.FEED_PRESSURE] + \
+                     [self.data.CIP] + \
+                     [self.data.FLOWRATE]
         return self.state
 
     def render(self, mode='human'):

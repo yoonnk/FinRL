@@ -1,6 +1,6 @@
 import yfinance as yf
 from stockstats import StockDataFrame as Sdf
-from env_nk_SEC3 import BWTPEnv3
+from env_nk_multi import BWTPEnv
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -16,29 +16,30 @@ from stable_baselines.common.policies import MlpPolicy
 import warnings
 warnings.filterwarnings('ignore')
 
-data_df = pd.read_excel(r'C:\Users\USER\Desktop\FinRL\data\DataforRL.xlsx',
-                        usecols=['pressure', 'flowrate', 'Total'], nrows=3876)
+data_df = pd.read_excel(r'C:\Users\USER\Desktop\FinRL\data\data_betwwen_CIP.xlsx',
+                        usecols=['MF_TURBIDITY', 'FEED_TEMPERATURE', 'FEED_TDS', 'FEED_FLOWRATE', 'FEED_PRESSURE', 'CIP', 'FLOWRATE'], nrows=815)
+
 data_df=data_df.reset_index()
 data_df=data_df.fillna(method='bfill')
 data_clean = data_df.copy()
 
-train = data_clean[1:3000]
+train = data_clean[1:600]
 # the index needs to start from 0
 train=train.reset_index(drop=True)
 
-env_train = DummyVecEnv([lambda: BWTPEnv3(train)])
+env_train = DummyVecEnv([lambda: BWTPEnv(train)])
 model_ppo = PPO2('MlpPolicy', env_train, tensorboard_log="./single_stock_trading_2_tensorboard/")
 model_ppo.learn(total_timesteps=100000,tb_log_name="run_aapl_ppo")
 
-test = data_clean[3000: ]
+test = data_clean[600: ]
 # the index needs to start from 0
 test=test.reset_index(drop=True)
 
 model = model_ppo
-env_test = DummyVecEnv([lambda: BWTPEnv3(test)])
+env_test = DummyVecEnv([lambda: BWTPEnv(test)])
 obs_test = env_test.reset()
 print("==============Model Prediction===========")
-#
+
 # for i in range(len(test.index.unique())):
 #     print("testing", i, "th")
 #     action, _states = model.predict(obs_test)
