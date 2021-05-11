@@ -31,7 +31,7 @@ class BWTPEnv(gym.Env):
         self.day = day
         self.df = copy.deepcopy(df)
         # action_space normalization and the shape is PLANT_DIM
-        self.action_space = spaces.Box(low=-1, high=1, shape=(PLANT_DIM,))
+        self.action_space = spaces.Box(low=-1.0, high=10, shape=(PLANT_DIM,))
         # Shape = 4: [Current Balance]+[prices]+[owned shares] +[macd]
         self.observation_space = spaces.Box(low=0, high=np.inf, shape=(8,))
         # load data from a pandas dataframe
@@ -58,6 +58,7 @@ class BWTPEnv(gym.Env):
         self.total_reward = 0
         self.actual_flowrate = 0
         self.actual_pressure = 0
+        self.penalty = 0.0
         #self.actual_energy = 0
         self.optimize_energy = 0
         # self.total_actual_energy = 0
@@ -125,6 +126,9 @@ class BWTPEnv(gym.Env):
 
         self.energy_difference = actual_energy- self.optimize_energy
         # self.total_energy_difference = self.total_self.actual_energy - self.total_optimize_energy
+
+        if self.state[7] < 800:
+            self.penalty = (800 - self.state[7]) * 0.0005
 
         # update held shares
         #self.state[index + PLANT_DIM + 1] += min(available_amount, action)
@@ -200,7 +204,7 @@ class BWTPEnv(gym.Env):
             return self.state, self.reward, self.terminal, {}
 
         else:
-            actions = actions * 2 + 8 # * HMAX_NORMALIZE
+            actions = actions #* 2 + 8 # * HMAX_NORMALIZE
             self.change_pressure(actions)
 
             # update data, walk a step s'
@@ -218,7 +222,8 @@ class BWTPEnv(gym.Env):
 
             end_energy = self.state[0]
 
-            self.reward = self.energy_difference # begin_total_energy - end_total_energy
+            self.reward = self.energy_difference - self.penalty # begin_total_energy - end_total_energy
+
             self.rewardsum +=self.reward
             # self.reward = self.reward * 10
             self.rewards_memory.append(self.reward)
@@ -228,11 +233,14 @@ class BWTPEnv(gym.Env):
             self.energy_difference_memory.append(self.energy_difference)
 
         self.rewardsum_memory.append(self.rewardsum)
-        df_rewards = pd.DataFrame(self.rewardsum_memory)
-        df_rewards.to_csv('rewardsum_3.csv')
+
         return self.state,self.reward, self.terminal, {}
 
     def reset(self):
+
+        df_rewards = pd.DataFrame(self.rewardsum_memory)
+        df_rewards.to_csv('rewardsum_3.csv')
+
         #self.energy_memory = [INITIAL_ENERGY]
         data_clean = read_cip()
         self.df = data_clean[0:600]
@@ -240,6 +248,7 @@ class BWTPEnv(gym.Env):
         self.data = self.df.loc[self.day, :]
         self.cost = 0
         self.trades = 0
+        self.penalty = 0
         self.rewardsum = 0
         self.total_actual_energy = 0.0
         self.total_optimize_energy = 0.0
