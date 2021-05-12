@@ -17,7 +17,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 def read_cip():
-    data_df = pd.read_excel(r'TOATHER/data_betwwen_CIP.xlsx',
+    data_df = pd.read_excel(r'C:\Users\USER\Desktop\FinRL\data\data_betwwen_CIP.xlsx',
                             usecols=['MF_TURBIDITY', 'FEED_TEMPERATURE', 'FEED_TDS', 'FEED_FLOWRATE', 'FEED_PRESSURE', 'CIP', 'FLOWRATE'], nrows=815)
 
     data_df=data_df.reset_index()
@@ -43,9 +43,9 @@ env_test = DummyVecEnv([lambda: BWTPEnv(test)])
 obs_test = env_test.reset()
 print("==============Model Prediction===========")
 
-# for i in range(len(test.index.unique())):
-#     print("testing", i, "th")
-#     action, _states = model.predict(obs_test)
-#     obs_test, rewards, dones, info = env_test.step(action)
-#     env_test.render()
+for i in range(len(test.index.unique())):
+    print("testing", i, "th")
+    action, _states = model.predict(obs_test)
+    obs_test, rewards, dones, info = env_test.step(action)
+    env_test.render()
 

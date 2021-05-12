@@ -17,7 +17,7 @@ PLANT_DIM = 1
 EFF_PUMP = 0.9
 EFF_ERD = 0.8
 # FLOW_FEED = 1000
-lookback_size = 3
+lookback_size = 5
 
 
 REWARD_SCALING = 1e-2
@@ -25,13 +25,13 @@ REWARD_SCALING = 1e-2
 class BWTPEnv(gym.Env):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, df, day=2):
+    def __init__(self, df, day=lookback_size-1):
         # super(StockEnv, self).__init__()
         # date increment
         self.day = day
         self.df = copy.deepcopy(df)
         # action_space normalization and the shape is PLANT_DIM
-        self.action_space = spaces.Box(low=-1.0, high=10, shape=(PLANT_DIM,))
+        self.action_space = spaces.Box(low=0.0, high=10.0, shape=(PLANT_DIM,))
         # Shape = 4: [Current Balance]+[prices]+[owned shares] +[macd]
         self.observation_space = spaces.Box(low=0, high=np.inf, shape=(8,))
         # load data from a pandas dataframe
@@ -70,7 +70,7 @@ class BWTPEnv(gym.Env):
         self.rewardsum_memory = []
         self.energy_difference_memory = []
         self.total_energy_difference_memory = []
-        self.action_container = self.df['FEED_PRESSURE'][0:3].to_list()
+        self.action_container = self.df['FEED_PRESSURE'][0:lookback_size].to_list()
         self.total_actual_energy = 0
         # self.total_actual_energy = 1502.87059974546
         self.action_memory = []
@@ -101,7 +101,7 @@ class BWTPEnv(gym.Env):
 
         prediction = call_model(_inputs.values.reshape(1, lookback_size, 6), _flow_rate.values[0:-1].reshape(1, lookback_size-1, 1))
 
-        self.state[7] = prediction * 0.5
+        self.state[7] = prediction # * 0.5
 
         self.state[5] = float(action)
         # energy consuption calculation
@@ -112,14 +112,24 @@ class BWTPEnv(gym.Env):
         actual_energy =\
             ((self.state[4] * act_p - EFF_PUMP * (act_p - 3)*(self.state[4]-act_q)) / 36 / EFF_ERD / act_q) + ((act_p - EFF_PUMP * (act_p - 3)) * (self.state[4] - act_q) / EFF_ERD / 36 /act_q)
 
-        self.state[0] = ((self.state[4] * self.state[5] - EFF_PUMP * (self.state[5] - 3) * (self.state[4] - self.state[7])) / 36 / EFF_ERD / self.state[
-            7]) + ((self.state[5] - EFF_PUMP * (self.state[5] - 3)) * (self.state[4] - self.state[7]) / EFF_ERD / 36 /
-                   self.state[7])
+        self.state[0] = ((self.state[4] * self.state[5] - EFF_PUMP * (self.state[5] - 3) * (self.state[4] - self.state[7])) / 36 / EFF_ERD / self.state[7]) + ((self.state[5] - EFF_PUMP * (self.state[5] - 3)) * (self.state[4] - self.state[7]) / EFF_ERD / 36 /self.state[7])
+
+        if self.state[0] <0:
+            self.state[0] = actual_energy
+            self.state[5] = act_p
+            self.state[7] = act_q
+
+
+        if self.state[5] <2:
+            self.state[0] = actual_energy
+            self.state[5] = act_p
+            self.state[7] = act_q
+
 
         self.memory.append([self.state[0], self.state[5], self.state[7], actual_energy])
         #if 0.1 < self.state[0] < 0.6:  # theoretically the range of SEC should be between 0.1 and 0.6
 
-        self.state[5] = action  # pressure
+        # self.state[5] = action  # pressure
         self.optimize_energy = self.state[0]
         self.total_optimize_energy += self.optimize_energy
         self.total_actual_energy += actual_energy
@@ -127,8 +137,8 @@ class BWTPEnv(gym.Env):
         self.energy_difference = actual_energy- self.optimize_energy
         # self.total_energy_difference = self.total_self.actual_energy - self.total_optimize_energy
 
-        if self.state[7] < 800:
-            self.penalty = (800 - self.state[7]) * 0.0005
+        if self.state[7] < 700:
+            self.penalty = (700 - self.state[7]) * 0.005
 
         # update held shares
         #self.state[index + PLANT_DIM + 1] += min(available_amount, action)
@@ -136,22 +146,6 @@ class BWTPEnv(gym.Env):
         self.cost += self.state[0]*10
         self.trades += 1
 
-        # else:
-        #     self.action_container[-1] = self.state[3]
-        #     self.state[0] = self.actual_energy
-        #     self.state[7] = self.actual_flowrate
-        #     self.state[5] = self.actual_pressure
-        #     self.optimize_energy = self.actual_energy
-        #     self.total_optimize_energy += self.optimize_energy
-        #     self.total_actual_energy += self.actual_energy
-        #
-        #     self.energy_difference = 0
-        #     # self.total_energy_difference = self.total_actual_energy - self.total_optimize_energy
-        #
-        #     # update held shares
-        #     #self.state[index + PLANT_DIM + 1] += min(available_amount, action)
-        #     # # update transaction costs
-        #     self.cost += self.state[0]*10
 
 
 
@@ -244,7 +238,7 @@ class BWTPEnv(gym.Env):
         #self.energy_memory = [INITIAL_ENERGY]
         data_clean = read_cip()
         self.df = data_clean[0:600]
-        self.day = 2
+        self.day = lookback_size-1
         self.data = self.df.loc[self.day, :]
         self.cost = 0
         self.trades = 0
@@ -265,7 +259,7 @@ class BWTPEnv(gym.Env):
                      [self.data.CIP] + \
                      [self.data.FLOWRATE]
 
-        self.action_container = self.df['FEED_PRESSURE'][0:3].to_list()
+        self.action_container = self.df['FEED_PRESSURE'][0:lookback_size].to_list()
         return self.state
 
     def render(self, mode='human'):
@@ -277,7 +271,7 @@ class BWTPEnv(gym.Env):
 
 
 def read_cip():
-    data_df = pd.read_excel(r'TOATHER/data_betwwen_CIP.xlsx',
+    data_df = pd.read_excel(r'C:\Users\USER\Desktop\FinRL\data\data_betwwen_CIP.xlsx',
                             usecols=['MF_TURBIDITY', 'FEED_TEMPERATURE', 'FEED_TDS', 'FEED_FLOWRATE', 'FEED_PRESSURE',
                                      'CIP', 'FLOWRATE'], nrows=815)
 
